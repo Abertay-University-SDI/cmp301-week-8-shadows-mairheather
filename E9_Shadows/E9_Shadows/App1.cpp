@@ -23,21 +23,30 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 	shadowShader = new ShadowShader(renderer->getDevice(), hwnd);
 
 	// Variables for defining shadow map
-	int shadowmapWidth = 1024;
-	int shadowmapHeight = 1024;
+	int shadowmapWidth = 1024 * 3;
+	int shadowmapHeight = 1024 * 3;
 	int sceneWidth = 100;
 	int sceneHeight = 100;
 
 	// This is your shadow map
-	shadowMap = new ShadowMap(renderer->getDevice(), shadowmapWidth, shadowmapHeight);
+	shadowMap[0] = new ShadowMap(renderer->getDevice(), shadowmapWidth, shadowmapHeight);
+	shadowMap[1] = new ShadowMap(renderer->getDevice(), shadowmapWidth, shadowmapHeight);
 
 	// Configure directional light
-	light = new Light();
-	light->setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
-	light->setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
-	light->setDirection(0.0f, -0.7f, 0.7f);
-	light->setPosition(0.f, 0.f, -10.f);
-	light->generateOrthoMatrix((float)sceneWidth, (float)sceneHeight, 0.1f, 100.f);
+	lights[0] = new Light();
+	lights[0]->setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
+	lights[0]->setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
+	lights[0]->setDirection(0.0f, -0.7f, 0.7f);
+	lights[0]->setPosition(0.f, 0.f, -10.f);
+	lights[0]->generateOrthoMatrix((float)sceneWidth, (float)sceneHeight, 0.1f, 100.f);
+	//lights[0]->generateProjectionMatrix(250, 50);
+
+	lights[1] = new Light();
+	lights[1]->setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
+	lights[1]->setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
+	lights[1]->setDirection(0.0f, -0.7f, 0.7f);
+	lights[1]->setPosition(0.f, 0.f, -10.f);
+	lights[1]->generateOrthoMatrix((float)sceneWidth, (float)sceneHeight, 0.1f, 100.f);
 
 }
 
@@ -85,12 +94,12 @@ bool App1::render()
 void App1::depthPass()
 {
 	// Set the render target to be the render to texture.
-	shadowMap->BindDsvAndSetNullRenderTarget(renderer->getDeviceContext());
+	shadowMap[0]->BindDsvAndSetNullRenderTarget(renderer->getDeviceContext());
 
 	// get the world, view, and projection matrices from the camera and d3d objects.
-	light->generateViewMatrix();
-	XMMATRIX lightViewMatrix = light->getViewMatrix();
-	XMMATRIX lightProjectionMatrix = light->getOrthoMatrix();
+	lights[0]->generateViewMatrix();
+	XMMATRIX lightViewMatrix = lights[0]->getViewMatrix();
+	XMMATRIX lightProjectionMatrix = lights[0]->getOrthoMatrix();
 	XMMATRIX worldMatrix = renderer->getWorldMatrix();
 
 	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
@@ -102,6 +111,34 @@ void App1::depthPass()
 	worldMatrix = renderer->getWorldMatrix();
 	worldMatrix = XMMatrixTranslation(0.f, 7.f, 5.f);
 	XMMATRIX scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
+	// Render model
+	model->sendData(renderer->getDeviceContext());
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	depthShader->render(renderer->getDeviceContext(), model->getIndexCount());
+
+	// Set back buffer as render target and reset view port.
+	renderer->setBackBufferRenderTarget();
+	renderer->resetViewport();
+
+	// Set the render target to be the render to texture.
+	shadowMap[1]->BindDsvAndSetNullRenderTarget(renderer->getDeviceContext());
+
+	// get the world, view, and projection matrices from the camera and d3d objects.
+	lights[1]->generateViewMatrix();
+	lightViewMatrix = lights[1]->getViewMatrix();
+	lightProjectionMatrix = lights[1]->getOrthoMatrix();
+	worldMatrix = renderer->getWorldMatrix();
+
+	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
+	// Render floor
+	mesh->sendData(renderer->getDeviceContext());
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	depthShader->render(renderer->getDeviceContext(), mesh->getIndexCount());
+
+	worldMatrix = renderer->getWorldMatrix();
+	worldMatrix = XMMatrixTranslation(0.f, 7.f, 5.f);
+	scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
 	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
 	// Render model
 	model->sendData(renderer->getDeviceContext());
@@ -127,8 +164,7 @@ void App1::finalPass()
 	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
 	// Render floor
 	mesh->sendData(renderer->getDeviceContext());
-	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, 
-		textureMgr->getTexture(L"brick"), shadowMap->getDepthMapSRV(), light);
+	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights);
 	shadowShader->render(renderer->getDeviceContext(), mesh->getIndexCount());
 
 	// Render model
@@ -137,7 +173,7 @@ void App1::finalPass()
 	XMMATRIX scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
 	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
 	model->sendData(renderer->getDeviceContext());
-	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap->getDepthMapSRV(), light);
+	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights);
 	shadowShader->render(renderer->getDeviceContext(), model->getIndexCount());
 
 	gui();
@@ -156,6 +192,22 @@ void App1::gui()
 	// Build UI
 	ImGui::Text("FPS: %.2f", timer->getFPS());
 	ImGui::Checkbox("Wireframe mode", &wireframeToggle);
+
+	ImGui::Text("Light 1");
+	ImGui::SliderFloat3("Position 1", &lightPos.x, -100.f, 100.0f);
+	lights[0]->setPosition(lightPos.x, lightPos.y, lightPos.z);
+	ImGui::SliderFloat3("Direction 1", &lightDirection.x, -100.f, 100.0f);
+	lights[0]->setDirection(lightDirection.x, lightDirection.y, lightDirection.z);
+	ImGui::ColorEdit3("Color 1", &lightDif.x);
+	lights[0]->setDiffuseColour(lightDif.x, lightDif.y, lightDif.z, 1.0f);
+
+	ImGui::Text("Light 2");
+	ImGui::SliderFloat3("Position 2", &light2Pos.x, -100.f, 100.0f);
+	lights[1]->setPosition(light2Pos.x, light2Pos.y, light2Pos.z);
+	ImGui::SliderFloat3("Direction 2", &light2Direction.x, -100.f, 100.0f);
+	lights[1]->setDirection(light2Direction.x, light2Direction.y, light2Direction.z);
+	ImGui::ColorEdit3("Color 2", &light2Dif.x);
+	lights[1]->setDiffuseColour(light2Dif.x, light2Dif.y, light2Dif.z, 1.0f);
 
 	// Render UI
 	ImGui::Render();

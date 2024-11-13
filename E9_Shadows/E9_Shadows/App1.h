@@ -28,12 +28,22 @@ private:
 	TextureShader* textureShader;
 	PlaneMesh* mesh;
 
-	Light* light;
+	//Light* light;
 	AModel* model;
 	ShadowShader* shadowShader;
 	DepthShader* depthShader;
 
-	ShadowMap* shadowMap;
+	ShadowMap* shadowMap[2];
+
+	Light* lights[2];
+
+	XMFLOAT4 ambient;
+	XMFLOAT3 lightPos = XMFLOAT3(1, 1, 1);
+	XMFLOAT3 light2Pos = XMFLOAT3(1, 1, 1);;
+	XMFLOAT3 lightDirection = XMFLOAT3(1, 1, 1);
+	XMFLOAT3 light2Direction = XMFLOAT3(1, 1, 1);;
+	XMFLOAT3 lightDif = XMFLOAT3(1, 1, 1);
+	XMFLOAT3 light2Dif = XMFLOAT3(1, 1, 1);;
 };
 
 #endif
