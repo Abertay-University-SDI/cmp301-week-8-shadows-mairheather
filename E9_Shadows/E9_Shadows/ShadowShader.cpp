@@ -91,10 +91,32 @@ void ShadowShader::initShader(const wchar_t* vsFilename, const wchar_t* psFilena
 	lightBufferDesc.StructureByteStride = 0;
 	renderer->CreateBuffer(&lightBufferDesc, NULL, &lightBuffer);
 
+	D3D11_SAMPLER_DESC heightmapDesc;
+	// Create a texture sampler state description.
+	heightmapDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	heightmapDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.MipLODBias = 0.0f;
+	heightmapDesc.MaxAnisotropy = 1;
+	heightmapDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	heightmapDesc.MinLOD = 0;
+	heightmapDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	renderer->CreateSamplerState(&heightmapDesc, &heightmapSample);
+
+	D3D11_BUFFER_DESC meshBufferDesc;
+	meshBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	meshBufferDesc.ByteWidth = sizeof(MeshBufferType);
+	meshBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	meshBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	meshBufferDesc.MiscFlags = 0;
+	meshBufferDesc.StructureByteStride = 0;
+	renderer->CreateBuffer(&meshBufferDesc, NULL, &meshBuffer);
+
 }
 
 
-void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& worldMatrix, const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix, ID3D11ShaderResourceView* texture, ID3D11ShaderResourceView* depthMap1, ID3D11ShaderResourceView* depthMap2, Light* light[2])
+void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& worldMatrix, const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix, ID3D11ShaderResourceView* texture, ID3D11ShaderResourceView* depthMap1, ID3D11ShaderResourceView* depthMap2, Light* light[2], ID3D11ShaderResourceView* heightMap, float t)
 {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	MatrixBufferType* dataPtr;
@@ -144,5 +166,19 @@ void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const
 	deviceContext->PSSetShaderResources(2, 1, &depthMap2);
 	deviceContext->PSSetSamplers(0, 1, &sampleState);
 	deviceContext->PSSetSamplers(1, 1, &sampleStateShadow);
+
+	MeshBufferType* meshPtr;
+	deviceContext->Map(meshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	meshPtr = (MeshBufferType*)mappedResource.pData;
+	meshPtr->type = t;
+	meshPtr->padding = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	deviceContext->Unmap(meshBuffer, 0);
+	deviceContext->VSSetConstantBuffers(1, 1, &meshBuffer);
+	deviceContext->PSSetConstantBuffers(2, 1, &meshBuffer);
+
+	deviceContext->VSSetShaderResources(0, 1, &heightMap);
+	deviceContext->VSSetSamplers(0, 1, &heightmapSample);
+	deviceContext->PSSetShaderResources(3, 1, &heightMap);
+	deviceContext->PSSetSamplers(2, 1, &heightmapSample);
 }
 

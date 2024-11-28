@@ -42,10 +42,32 @@ void DepthShader::initShader(const wchar_t* vsFilename, const wchar_t* psFilenam
 	matrixBufferDesc.MiscFlags = 0;
 	matrixBufferDesc.StructureByteStride = 0;
 	renderer->CreateBuffer(&matrixBufferDesc, NULL, &matrixBuffer);
+	
+	D3D11_SAMPLER_DESC heightmapDesc;
+	// Create a texture sampler state description.
+	heightmapDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	heightmapDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	heightmapDesc.MipLODBias = 0.0f;
+	heightmapDesc.MaxAnisotropy = 1;
+	heightmapDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	heightmapDesc.MinLOD = 0;
+	heightmapDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	renderer->CreateSamplerState(&heightmapDesc, &heightmapSample);
+
+	D3D11_BUFFER_DESC meshBufferDesc;
+	meshBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+	meshBufferDesc.ByteWidth = sizeof(MeshBufferType);
+	meshBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	meshBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	meshBufferDesc.MiscFlags = 0;
+	meshBufferDesc.StructureByteStride = 0;
+	renderer->CreateBuffer(&meshBufferDesc, NULL, &meshBuffer);
 
 }
 
-void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX &worldMatrix, const XMMATRIX &viewMatrix, const XMMATRIX &projectionMatrix)
+void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX &worldMatrix, const XMMATRIX &viewMatrix, const XMMATRIX &projectionMatrix, ID3D11ShaderResourceView* heightMap, float t)
 {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	MatrixBufferType* dataPtr;
@@ -63,4 +85,16 @@ void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	dataPtr->projection = tproj;
 	deviceContext->Unmap(matrixBuffer, 0);
 	deviceContext->VSSetConstantBuffers(0, 1, &matrixBuffer);
+
+	MeshBufferType* meshPtr;
+	deviceContext->Map(meshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	meshPtr = (MeshBufferType*)mappedResource.pData;
+	meshPtr->type = t;
+	meshPtr->padding = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	deviceContext->Unmap(meshBuffer, 0);
+	deviceContext->VSSetConstantBuffers(1, 1, &meshBuffer);
+
+	deviceContext->VSSetShaderResources(0, 1, &heightMap);
+	deviceContext->VSSetSamplers(0, 1, &heightmapSample);
 }
+

@@ -7,6 +7,7 @@
 #include "TextureShader.h"
 #include "ShadowShader.h"
 #include "DepthShader.h"
+#include "ManipulationShader.h"
 
 class App1 : public BaseApplication
 {
@@ -27,6 +28,8 @@ protected:
 private:
 	TextureShader* textureShader;
 	PlaneMesh* mesh;
+	ManipulationShader* manipulation_shader;
+	
 
 	//Light* light;
 	AModel* model;
@@ -44,6 +47,8 @@ private:
 	XMFLOAT3 light2Direction = XMFLOAT3(1, 1, 1);;
 	XMFLOAT3 lightDif = XMFLOAT3(1, 1, 1);
 	XMFLOAT3 light2Dif = XMFLOAT3(1, 1, 1);;
+
+	XMFLOAT3 modelPos = XMFLOAT3(0, 20, 10);
 };
 
 #endif

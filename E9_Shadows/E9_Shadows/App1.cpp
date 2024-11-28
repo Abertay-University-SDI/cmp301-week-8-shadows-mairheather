@@ -16,11 +16,13 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 	mesh = new PlaneMesh(renderer->getDevice(), renderer->getDeviceContext());
 	model = new AModel(renderer->getDevice(), "res/teapot.obj");
 	textureMgr->loadTexture(L"brick", L"res/brick1.dds");
+	textureMgr->loadTexture(L"height", L"res/height.png");
 
 	// initial shaders
 	textureShader = new TextureShader(renderer->getDevice(), hwnd);
 	depthShader = new DepthShader(renderer->getDevice(), hwnd);
 	shadowShader = new ShadowShader(renderer->getDevice(), hwnd);
+	manipulation_shader = new ManipulationShader(renderer->getDevice(), hwnd);
 
 	// Variables for defining shadow map
 	int shadowmapWidth = 1024 * 3;
@@ -34,7 +36,7 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 
 	// Configure directional light
 	lights[0] = new Light();
-	lights[0]->setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
+	lights[0]->setAmbientColour(0.0f, 0.0f, 0.0f, 1.0f);
 	lights[0]->setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
 	lights[0]->setDirection(0.0f, -0.7f, 0.7f);
 	lights[0]->setPosition(0.f, 0.f, -10.f);
@@ -42,9 +44,10 @@ void App1::init(HINSTANCE hinstance, HWND hwnd, int screenWidth, int screenHeigh
 	//lights[0]->generateProjectionMatrix(250, 50);
 
 	lights[1] = new Light();
-	lights[1]->setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
+	lights[1]->setAmbientColour(0.0f, 0.0f, 0.0f, 1.0f);
 	lights[1]->setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
 	lights[1]->setDirection(0.0f, -0.7f, 0.7f);
+	lights[1]->setLookAt(0, 0, 0);
 	lights[1]->setPosition(0.f, 0.f, -10.f);
 	lights[1]->generateOrthoMatrix((float)sceneWidth, (float)sceneHeight, 0.1f, 100.f);
 
@@ -103,18 +106,24 @@ void App1::depthPass()
 	XMMATRIX worldMatrix = renderer->getWorldMatrix();
 
 	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
+
 	// Render floor
 	mesh->sendData(renderer->getDeviceContext());
-	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	//manipulation_shader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix, textureMgr->getTexture(L"rock"), textureMgr->getTexture(L"height"), 0, lights);
+	//manipulation_shader->render(renderer->getDeviceContext(), mesh->getIndexCount());
+
+	//mesh->sendData(renderer->getDeviceContext());
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix, textureMgr->getTexture(L"height"), 1);
 	depthShader->render(renderer->getDeviceContext(), mesh->getIndexCount());
 
 	worldMatrix = renderer->getWorldMatrix();
-	worldMatrix = XMMatrixTranslation(0.f, 7.f, 5.f);
-	XMMATRIX scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	worldMatrix = XMMatrixTranslation(modelPos.x, modelPos.y, modelPos.z);;
+	XMMATRIX scaleMatrix = XMMatrixScaling(0.25f, 0.25f, 0.25f);
 	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
+
 	// Render model
 	model->sendData(renderer->getDeviceContext());
-	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix, textureMgr->getTexture(L"nul"), 0);
 	depthShader->render(renderer->getDeviceContext(), model->getIndexCount());
 
 	// Set back buffer as render target and reset view port.
@@ -133,16 +142,17 @@ void App1::depthPass()
 	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
 	// Render floor
 	mesh->sendData(renderer->getDeviceContext());
-	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix, textureMgr->getTexture(L"height"), 1);
 	depthShader->render(renderer->getDeviceContext(), mesh->getIndexCount());
 
 	worldMatrix = renderer->getWorldMatrix();
-	worldMatrix = XMMatrixTranslation(0.f, 7.f, 5.f);
-	scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	worldMatrix = XMMatrixTranslation(modelPos.x, modelPos.y, modelPos.z);;
+	scaleMatrix = XMMatrixScaling(0.25f, 0.25f, 0.25f);
 	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
+
 	// Render model
 	model->sendData(renderer->getDeviceContext());
-	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix);
+	depthShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, lightViewMatrix, lightProjectionMatrix, textureMgr->getTexture(L"nul"), 0);
 	depthShader->render(renderer->getDeviceContext(), model->getIndexCount());
 
 	// Set back buffer as render target and reset view port.
@@ -164,16 +174,16 @@ void App1::finalPass()
 	worldMatrix = XMMatrixTranslation(-50.f, 0.f, -10.f);
 	// Render floor
 	mesh->sendData(renderer->getDeviceContext());
-	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights);
+	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"height"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights, textureMgr->getTexture(L"height"), 1);
 	shadowShader->render(renderer->getDeviceContext(), mesh->getIndexCount());
 
 	// Render model
 	worldMatrix = renderer->getWorldMatrix();
-	worldMatrix = XMMatrixTranslation(0.f, 7.f, 5.f);
-	XMMATRIX scaleMatrix = XMMatrixScaling(0.5f, 0.5f, 0.5f);
+	worldMatrix = XMMatrixTranslation(modelPos.x, modelPos.y, modelPos.z);
+	XMMATRIX scaleMatrix = XMMatrixScaling(0.25f, 0.25f, 0.25f);
 	worldMatrix = XMMatrixMultiply(worldMatrix, scaleMatrix);
 	model->sendData(renderer->getDeviceContext());
-	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights);
+	shadowShader->setShaderParameters(renderer->getDeviceContext(), worldMatrix, viewMatrix, projectionMatrix, textureMgr->getTexture(L"brick"), shadowMap[0]->getDepthMapSRV(), shadowMap[1]->getDepthMapSRV(), lights, textureMgr->getTexture(L"nul"), 1);
 	shadowShader->render(renderer->getDeviceContext(), model->getIndexCount());
 
 	gui();
@@ -208,6 +218,9 @@ void App1::gui()
 	lights[1]->setDirection(light2Direction.x, light2Direction.y, light2Direction.z);
 	ImGui::ColorEdit3("Color 2", &light2Dif.x);
 	lights[1]->setDiffuseColour(light2Dif.x, light2Dif.y, light2Dif.z, 1.0f);
+
+	ImGui::Text("Model Position");
+	ImGui::SliderFloat3("Model Pos", &modelPos.x, -500.f, 500.0f);
 
 	// Render UI
 	ImGui::Render();

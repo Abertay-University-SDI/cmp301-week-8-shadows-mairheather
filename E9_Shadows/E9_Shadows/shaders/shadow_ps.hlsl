@@ -1,9 +1,11 @@
 Texture2D shaderTexture : register(t0);
 Texture2D depthMapTexture1 : register(t1);
 Texture2D depthMapTexture2 : register(t2);
+Texture2D heightMap : register(t3);
 
 SamplerState diffuseSampler : register(s0);
 SamplerState shadowSampler : register(s1);
+SamplerState sampler0 : register(s2);
 
 cbuffer LightBuffer : register(b0)
 {
@@ -12,6 +14,12 @@ cbuffer LightBuffer : register(b0)
     float4 direction[2];
     float4 position[2];
 };
+
+cbuffer MeshBuffer : register(b1)
+{
+    float meshType;
+    float3 padding;
+}
 
 struct InputType
 {
@@ -65,11 +73,39 @@ float2 getProjectiveCoords(float4 lightViewPosition)
     return projTex;
 }
 
+float GetHeight(float2 uv)
+{
+    float height = heightMap.SampleLevel(sampler0, uv, 0).r;
+    return height * 10;
+
+}
+
+float3 CalculateNormal(float2 uv)
+{
+    float uvOffset = 0.001f;
+
+    float heightN = GetHeight(float2(uv.x, uv.y + uvOffset));
+    float heightE = GetHeight(float2(uv.x + uvOffset, uv.y));
+    float heightS = GetHeight(float2(uv.x, uv.y - uvOffset));
+    float heightW = GetHeight(float2(uv.x - uvOffset, uv.y));
+
+    float worldStep = 100 * uvOffset;
+    float3 tan = normalize(float3(2.0f * worldStep, heightE - heightW, 0));
+    float3 bitan = normalize(float3(0, heightN - heightS, 2.0f * worldStep));
+
+    return normalize(cross(bitan, tan));
+}
+
 float4 main(InputType input) : SV_TARGET
 {
     float shadowMapBias = 0.005f;
     float4 colour = float4(0.f, 0.f, 0.f, 1.f);
     float4 textureColour = shaderTexture.Sample(diffuseSampler, input.tex);
+
+    if (meshType == 1)
+    {
+        input.normal = CalculateNormal(input.tex);
+    }
 
     // Calculate the projected texture coordinates.
     float2 pTexCoord = getProjectiveCoords(input.lightViewPos);
