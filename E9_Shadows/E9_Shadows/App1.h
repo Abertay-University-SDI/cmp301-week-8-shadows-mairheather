@@ -28,6 +28,7 @@ protected:
 private:
 	TextureShader* textureShader;
 	PlaneMesh* mesh;
+	SphereMesh* sphere;
 	ManipulationShader* manipulation_shader;
 	
 
@@ -49,6 +50,7 @@ private:
 	XMFLOAT3 light2Dif = XMFLOAT3(1, 1, 1);;
 
 	XMFLOAT3 modelPos = XMFLOAT3(0, 20, 10);
+	float elapsedTime;
 };
 
 #endif

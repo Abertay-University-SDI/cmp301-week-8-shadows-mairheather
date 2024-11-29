@@ -116,7 +116,7 @@ void ShadowShader::initShader(const wchar_t* vsFilename, const wchar_t* psFilena
 }
 
 
-void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& worldMatrix, const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix, ID3D11ShaderResourceView* texture, ID3D11ShaderResourceView* depthMap1, ID3D11ShaderResourceView* depthMap2, Light* light[2], ID3D11ShaderResourceView* heightMap, float t)
+void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX& worldMatrix, const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix, ID3D11ShaderResourceView* texture, ID3D11ShaderResourceView* depthMap1, ID3D11ShaderResourceView* depthMap2, Light* light[2], ID3D11ShaderResourceView* heightMap, float t, float dt)
 {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	MatrixBufferType* dataPtr;
@@ -171,7 +171,8 @@ void ShadowShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const
 	deviceContext->Map(meshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	meshPtr = (MeshBufferType*)mappedResource.pData;
 	meshPtr->type = t;
-	meshPtr->padding = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	meshPtr->time = dt;
+	meshPtr->padding = XMFLOAT2(0.0f, 0.0f);
 	deviceContext->Unmap(meshBuffer, 0);
 	deviceContext->VSSetConstantBuffers(1, 1, &meshBuffer);
 	deviceContext->PSSetConstantBuffers(2, 1, &meshBuffer);

@@ -98,7 +98,7 @@ float3 CalculateNormal(float2 uv)
 
 float4 main(InputType input) : SV_TARGET
 {
-    float shadowMapBias = 0.005f;
+    float shadowMapBias = 0.005;
     float4 colour = float4(0.f, 0.f, 0.f, 1.f);
     float4 textureColour = shaderTexture.Sample(diffuseSampler, input.tex);
 
@@ -106,7 +106,7 @@ float4 main(InputType input) : SV_TARGET
     {
         input.normal = CalculateNormal(input.tex);
     }
-
+    
     // Calculate the projected texture coordinates.
     float2 pTexCoord = getProjectiveCoords(input.lightViewPos);
     float2 pTexCoord2 = getProjectiveCoords(input.lightViewPos2);
@@ -117,12 +117,14 @@ float4 main(InputType input) : SV_TARGET
 
         float finalShadow = 1.0f;
 
+        //shadowMapBias = dot(input.normal, -direction[0]);
         // Has depth map data
         if (isInShadow(depthMapTexture1, pTexCoord, input.lightViewPos, shadowMapBias))
         {
             finalShadow *= 0.0f;
         }
 
+       // shadowMapBias = dot(input.normal, -direction[1]);
         if (isInShadow(depthMapTexture2, pTexCoord2, input.lightViewPos2, shadowMapBias))
         {
             finalShadow *= 0.0f;

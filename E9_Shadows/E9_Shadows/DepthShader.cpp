@@ -4,6 +4,8 @@
 DepthShader::DepthShader(ID3D11Device* device, HWND hwnd) : BaseShader(device, hwnd)
 {
 	initShader(L"depth_vs.cso", L"depth_ps.cso");
+	loadVertexShader(L"depth_vs.cso");
+	loadPixelShader(L"depth_ps.cso");
 }
 
 DepthShader::~DepthShader()
@@ -31,8 +33,6 @@ void DepthShader::initShader(const wchar_t* vsFilename, const wchar_t* psFilenam
 	D3D11_BUFFER_DESC matrixBufferDesc;
 
 	// Load (+ compile) shader files
-	loadVertexShader(vsFilename);
-	loadPixelShader(psFilename);
 
 	// Setup the description of the dynamic matrix constant buffer that is in the vertex shader.
 	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -67,8 +67,10 @@ void DepthShader::initShader(const wchar_t* vsFilename, const wchar_t* psFilenam
 
 }
 
-void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX &worldMatrix, const XMMATRIX &viewMatrix, const XMMATRIX &projectionMatrix, ID3D11ShaderResourceView* heightMap, float t)
+void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const XMMATRIX &worldMatrix, const XMMATRIX &viewMatrix, const XMMATRIX &projectionMatrix, ID3D11ShaderResourceView* heightMap, float t, float dt)
 {
+	loadVertexShader(L"depth_vs.cso");
+	loadPixelShader(L"depth_ps.cso");
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	MatrixBufferType* dataPtr;
 	
@@ -90,7 +92,8 @@ void DepthShader::setShaderParameters(ID3D11DeviceContext* deviceContext, const 
 	deviceContext->Map(meshBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 	meshPtr = (MeshBufferType*)mappedResource.pData;
 	meshPtr->type = t;
-	meshPtr->padding = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	meshPtr->time = dt;
+	meshPtr->padding = XMFLOAT2(0.0f, 0.0f);
 	deviceContext->Unmap(meshBuffer, 0);
 	deviceContext->VSSetConstantBuffers(1, 1, &meshBuffer);
 
